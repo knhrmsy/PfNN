@@ -1,4 +1,4 @@
-import gzip
+﻿import gzip
 import os
 
 import numpy as np
