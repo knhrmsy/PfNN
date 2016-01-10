@@ -28,7 +28,7 @@ parser.add_argument('--gpu', '-g', default=-1, type=int,
 args = parser.parse_args()
 
 batchsize = 100
-n_epoch = 200
+n_epoch = 10000
 n_units = 1000
 
 # Prepare dataset
