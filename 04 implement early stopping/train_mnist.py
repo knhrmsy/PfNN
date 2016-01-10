@@ -80,53 +80,103 @@ train_acc  = []
 test_loss = []
 test_acc  = []
 
+# early stopping
+patience = 5000
+patience_increase = 2
+improvement_threshold = 0.995
+validation_frequency = min(N_train / batchsize, patience / 2)
+best_validation_loss = np.inf
+test_score = 0
+done_looping = False
+
+n_train_batches = N_train / batchsize
+
+
 # Learning loop
-for epoch in xrange(1, n_epoch + 1):
+epoch = 0
+while (epoch < n_epoch) and (not done_looping):
+    epoch = epoch + 1
     print 'epoch {}'.format(epoch)
 
     # training
     perm = np.random.permutation(N_train)
-    sum_accuracy = 0
-    sum_loss = 0
+    sum_train_accuracy = 0
+    sum_train_loss = 0
     for i in xrange(0, N_train, batchsize):
         x = chainer.Variable(xp.asarray(x_train[perm[i:i + batchsize]]))
         t = chainer.Variable(xp.asarray(y_train[perm[i:i + batchsize]]))
 
         # Pass the loss function (Classifier defines it) and its arguments
         optimizer.update(model, x, t)
-
-        if epoch == 1 and i == 0:
-            with open('netgraph.dot', 'w') as o:
-                g = computational_graph.build_computational_graph(
-                    (model.loss, ), remove_split=True)
-                o.write(g.dump())
-            print 'net graph generated'
         
-        sum_loss += float(model.loss.data) * len(t.data)
-        sum_accuracy += float(model.accuracy.data) * len(t.data)
+        sum_train_loss += float(model.loss.data) * len(t.data)
+        sum_train_accuracy += float(model.accuracy.data) * len(t.data)
+        
+        # generate network graph
+        # if epoch == 1 and i == 0:
+            # with open('netgraph.dot', 'w') as o:
+                # g = computational_graph.build_computational_graph(
+                    # (model.loss, ), remove_split=True)
+                # o.write(g.dump())
+            # print 'net graph generated'
+        
+        # validation
+        batch_index = (i / batchsize)
+        iter = (epoch - 1) * n_train_batches + batch_index
+        if (iter + 1) % validation_frequency == 0:
+            sum_validate_accuracy = 0
+            sum_validate_loss = 0
+            for i in xrange(0, N_validate, batchsize):
+                x = chainer.Variable(xp.asarray(x_test[i:i + batchsize]),
+                                     volatile='on')
+                t = chainer.Variable(xp.asarray(y_test[i:i + batchsize]),
+                                     volatile='on')
+                loss = model(x, t)
+                sum_validate_loss += float(loss.data) * len(t.data)
+                sum_validate_accuracy += float(model.accuracy.data) * len(t.data)
 
-    train_loss.append(sum_loss / N_train)
-    train_acc.append(sum_accuracy / N_train)
+            this_validate_loss = sum_validate_loss / N_validate
+            this_validate_accuracy = sum_validate_accuracy / N_validate
+            
+            test_loss.append(this_validate_loss)
+            test_acc.append(sum_validate_accuracy / N_validate)
+            print 'validation epoch{}, minibatch{}/{}'.format(epoch, batch_index + 1, n_train_batches)
+            print '      mean loss={}, accuracy={}'.format(
+                this_validate_loss, sum_validate_accuracy / N_validate)
+            
+            if this_validate_loss < best_validation_loss:
+                if this_validate_loss < best_validation_loss * improvement_threshold:
+                    patience = max(patience, iter * patience_increase)
+                    print " iter {} / patience {}".format(iter+2, patience)
+                
+                best_validation_loss = this_validate_loss
+
+        if patience <= iter:
+            done_looping = True
+            break
+
+    train_loss.append(sum_train_loss / N_train)
+    train_acc.append(sum_train_accuracy / N_train)
     print 'train mean loss={}, accuracy={}'.format(
-        sum_loss / N_train, sum_accuracy / N_train)
-
+        sum_train_loss / N_train, sum_train_accuracy / N_train)
 
     # evaluation
-    sum_accuracy = 0
-    sum_loss = 0
+    sum_test_accuracy = 0
+    sum_test_loss = 0
     for i in xrange(0, N_test, batchsize):
         x = chainer.Variable(xp.asarray(x_test[i:i + batchsize]),
                              volatile='on')
         t = chainer.Variable(xp.asarray(y_test[i:i + batchsize]),
                              volatile='on')
         loss = model(x, t)
-        sum_loss += float(loss.data) * len(t.data)
-        sum_accuracy += float(model.accuracy.data) * len(t.data)
+        sum_test_loss += float(loss.data) * len(t.data)
+        sum_test_accuracy += float(model.accuracy.data) * len(t.data)
 
-    test_loss.append(sum_loss / N_test)
-    test_acc.append(sum_accuracy / N_test)
+    test_loss.append(sum_test_loss / N_test)
+    test_acc.append(sum_test_accuracy / N_test)
     print 'test  mean loss={}, accuracy={}'.format(
-        sum_loss / N_test, sum_accuracy / N_test)
+        sum_test_loss / N_test, sum_test_accuracy / N_test)
+    
 
 print 'train finish'
 print 'draw graph'
