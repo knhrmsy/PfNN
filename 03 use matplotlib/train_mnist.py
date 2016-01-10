@@ -130,7 +130,7 @@ print('train finish')
 print('draw graph')
 # draw graph
 plt.figure(figsize=(8,6))
-plt.ylim([1, n_epoch])
+plt.xlim([1, n_epoch])
 plt.ylim([0.9, 1.0])
 plt.plot(range(len(train_acc)), train_acc)
 plt.plot(range(len(test_acc)), test_acc)
