@@ -28,7 +28,7 @@ parser.add_argument('--gpu', '-g', default=-1, type=int,
 args = parser.parse_args()
 
 batchsize = 100
-n_epoch = 20
+n_epoch = 200
 n_units = 1000
 
 # Prepare dataset
@@ -80,17 +80,15 @@ train_acc  = []
 test_loss = []
 test_acc  = []
 
+n_train_batches = N_train / batchsize
 # early stopping
 patience = 5000
 patience_increase = 2
 improvement_threshold = 0.995
-validation_frequency = min(N_train / batchsize, patience / 2)
+validation_frequency = min(n_train_batches, patience / 2)
 best_validation_loss = np.inf
 test_score = 0
 done_looping = False
-
-n_train_batches = N_train / batchsize
-
 
 # Learning loop
 epoch = 0
@@ -138,8 +136,6 @@ while (epoch < n_epoch) and (not done_looping):
             this_validate_loss = sum_validate_loss / N_validate
             this_validate_accuracy = sum_validate_accuracy / N_validate
             
-            test_loss.append(this_validate_loss)
-            test_acc.append(sum_validate_accuracy / N_validate)
             print 'validation epoch{}, minibatch{}/{}'.format(epoch, batch_index + 1, n_train_batches)
             print '      mean loss={}, accuracy={}'.format(
                 this_validate_loss, sum_validate_accuracy / N_validate)
@@ -147,7 +143,7 @@ while (epoch < n_epoch) and (not done_looping):
             if this_validate_loss < best_validation_loss:
                 if this_validate_loss < best_validation_loss * improvement_threshold:
                     patience = max(patience, iter * patience_increase)
-                    print " iter {} / patience {}".format(iter+2, patience)
+                    print " iter {} / patience {}".format(iter+1, patience)
                 
                 best_validation_loss = this_validate_loss
 
@@ -182,7 +178,7 @@ print 'train finish'
 print 'draw graph'
 # draw graph
 plt.figure(figsize=(8,6))
-plt.xlim([0, n_epoch])
+plt.xlim([0, epoch])
 plt.ylim([0.975, 1.0])
 def add1list(list):
     return map(lambda item: item+1, list)
