@@ -18,7 +18,14 @@ from chainer import serializers
 import data
 import net
 
+
 starttime = time.time()
+
+# 実験用変数
+step_units = 1
+
+# numpy配列を全て印字
+np.set_printoptions(threshold='nan')
 
 parser = argparse.ArgumentParser(description='Chainer example: MNIST')
 parser.add_argument('--initmodel', '-m', default='',
@@ -31,7 +38,7 @@ args = parser.parse_args()
 
 batchsize = 100
 n_epoch = 10000
-n_units = 10
+n_units = 1
 
 # Prepare dataset
 print 'load MNIST dataset'
@@ -157,13 +164,24 @@ def evolve(model):
     print 'draw graph'
     # draw graph
     plt.figure(figsize=(8,6))
-    plt.xlim([0, epoch])
-    plt.ylim([0.95, 1.0])
+    # plt.xlim([0, epoch])
+    # plt.ylim([0.95, 1.0])
     plt.plot(xrange(1,len(train_acc)+1), train_acc)
     plt.plot(xrange(1,len(test_acc)+1), test_acc)
     plt.legend(["train_acc","test_acc"],loc=4)
     plt.title("Accuracy of digit recognition.")
     plt.plot()
+    plt.savefig("v%5d_graph.png" % (version))
+    
+    plt.figure(figsize=(8,6))
+    plt.xlim([0, epoch])
+    plt.ylim([0.95, 1.0])
+    plt.plot(xrange(1,len(train_acc)+1), train_acc)
+    plt.plot(xrange(1,len(test_acc)+1), test_acc)
+    plt.legend(["train_acc","test_acc"],loc=4)
+    plt.title("Accuracy of digit recognition. range [0.95, 1.0]")
+    plt.plot()
+    plt.savefig("v%5d_graph_095.png" % (version))
 
     # Save the model and the optimizer
     print 'save the model'
@@ -175,7 +193,6 @@ def evolve(model):
     finishtime = time.time()
     print 'execute time = {}'.format(finishtime - starttime)
 
-    plt.savefig("v%5d_graph.png" % (version))
     # plt.show()
     
     return sum_test_accuracy / N_test
@@ -207,7 +224,7 @@ def initWeights(model, prev_n_units, n_units):
 
 
 version = 0
-while version < 100:
+while version < 1000:
     version = version + 1
     
     if version == 1:
@@ -220,7 +237,21 @@ while version < 100:
         serializers.load_hdf5("v%5d.model" % (version-1), prev_model)
 
         W1, b1, W2, b2 = initWeights(prev_model, prev_n_units, n_units)
-
+        
+        # debug
+        print "begin----------"
+        print "v%5d" % (version)
+        print "n_units = %d" % (n_units)
+        print "W1"
+        print W1
+        print "b1"
+        print b1
+        print "W2"
+        print W2
+        print "b2"
+        print b2
+        print "----------end"
+        
         model = L.Classifier(net.MnistMLP(784, n_units, 10, initW1=W1, initb1=b1, initW2=W2, initb2=b2))
     cuda.get_device(args.gpu).use()
     model.to_gpu()
@@ -232,7 +263,7 @@ while version < 100:
     
     
     prev_n_units = n_units
-    n_units = prev_n_units + 10
+    n_units = prev_n_units + step_units
     
 
 
