@@ -19,10 +19,42 @@ import data
 import net
 
 
-starttime = time.time()
-
-# 実験用変数
+# ユニット増加数
 step_units = 1
+
+# 以前の重みの補正方法
+def correctprevW(weight):
+    return weight / 2
+
+
+# いろいろいじる
+# 他ランダム
+def initWeights(model, prev_n_units, n_units):
+    model.to_cpu()
+    if prev_n_units > n_units:
+        print "Error: not implement!"
+        exit()
+    pW1 = model.predictor.l1.W.data
+    pb1 = model.predictor.l1.b.data
+    pW2 = model.predictor.l2.W.data
+    pb2 = model.predictor.l2.b.data
+    
+    offset = n_units - prev_n_units
+    W1 = np.append(correctprevW(pW1),
+        np.random.normal(0, 1 * np.sqrt(1. / 784), (offset, 784)),
+        axis=0)
+    b1 = np.append(correctprevW(pb1),
+        np.zeros(offset),
+        axis=0)
+    W2 = np.append(correctprevW(pW2),
+        np.random.normal(0, 1 * np.sqrt(1. / offset), (10, offset)),
+        axis=1)
+    
+    return W1, b1, W2, pb2
+
+
+
+starttime = time.time()
 
 # numpy配列を全て印字
 np.set_printoptions(threshold='nan')
@@ -57,6 +89,11 @@ y_train, y_validate, y_test = np.split(
 if N_test != y_test.size:
     print "dataset_size error"
     exit()
+
+version_loss = []
+version_acc  = []
+all_train_acc  = []
+all_test_acc  = []
 
 def evolve(model):
     # Plot init
@@ -163,6 +200,7 @@ def evolve(model):
     print 'train finish'
     print 'draw graph'
     # draw graph
+    # このversionでの推移
     plt.figure(figsize=(8,6))
     # plt.xlim([0, epoch])
     # plt.ylim([0.95, 1.0])
@@ -171,8 +209,10 @@ def evolve(model):
     plt.legend(["train_acc","test_acc"],loc=4)
     plt.title("Accuracy of digit recognition.")
     plt.plot()
-    plt.savefig("v%5d_graph.png" % (version))
+    plt.savefig("graph_v%5d.png" % (version))
+    plt.close()
     
+    # このversionでの推移 範囲[0.95, 1.0]
     plt.figure(figsize=(8,6))
     plt.xlim([0, epoch])
     plt.ylim([0.95, 1.0])
@@ -181,8 +221,47 @@ def evolve(model):
     plt.legend(["train_acc","test_acc"],loc=4)
     plt.title("Accuracy of digit recognition. range [0.95, 1.0]")
     plt.plot()
-    plt.savefig("v%5d_graph_095.png" % (version))
-
+    plt.savefig("graph_095_v%5d.png" % (version))
+    plt.close()
+    
+    # 各versionにおける精度の変化
+    version_loss.append(best_validation_loss)
+    version_acc.append(test_acc[-1])
+    plt.figure(figsize=(8,6))
+    # plt.ylim([0.50, 1.0])
+    plt.plot(xrange(1,len(version_acc)+1), version_acc)
+    plt.legend(["version_acc"],loc=4)
+    plt.title("Accuracy of digit recognition. (version)")
+    plt.plot()
+    plt.savefig("graph_version_v%5d.png" % (version))
+    plt.close()
+    
+    # 今まで全ての推移(x軸epoch)
+    all_train_acc.extend(train_acc)
+    all_test_acc.extend(test_acc)
+    plt.figure(figsize=(8,6))
+    # plt.ylim([0.95, 1.0])
+    plt.plot(xrange(1,len(all_train_acc)+1), all_train_acc)
+    plt.plot(xrange(1,len(all_test_acc)+1), all_test_acc)
+    plt.legend(["all_train_acc","all_test_acc"],loc=4)
+    plt.title("Accuracy of digit recognition.")
+    plt.plot()
+    plt.savefig("graph_allepoch_v%5d.png" % (version))
+    plt.close()
+    
+    plt.figure(figsize=(8,6))
+    plt.ylim([0.95, 1.0])
+    plt.plot(xrange(1,len(all_train_acc)+1), all_train_acc)
+    plt.plot(xrange(1,len(all_test_acc)+1), all_test_acc)
+    plt.legend(["all_train_acc","all_test_acc"],loc=4)
+    plt.title("Accuracy of digit recognition. range [0.95, 1.0]")
+    plt.plot()
+    plt.savefig("graph_allepoch095_v%5d.png" % (version))
+    plt.close()
+    
+    
+    plt.close('all')
+    
     # Save the model and the optimizer
     print 'save the model'
     model.to_cpu()
@@ -190,6 +269,7 @@ def evolve(model):
     print 'save the optimizer'
     serializers.save_hdf5('v%5d.state' % (version), optimizer)
 
+    
     finishtime = time.time()
     print 'execute time = {}'.format(finishtime - starttime)
 
@@ -198,33 +278,8 @@ def evolve(model):
     return sum_test_accuracy / N_test
 
 
-# いろいろいじる
-def initWeights(model, prev_n_units, n_units):
-    model.to_cpu()
-    if prev_n_units > n_units:
-        print "Error: not implement!"
-        exit()
-    pW1 = model.predictor.l1.W.data
-    pb1 = model.predictor.l1.b.data
-    pW2 = model.predictor.l2.W.data
-    pb2 = model.predictor.l2.b.data
-    
-    offset = n_units - prev_n_units
-    W1 = np.append(pW1,
-        np.random.normal(0, 1 * np.sqrt(1. / 784), (offset, 784)),
-        axis=0)
-    b1 = np.append(pb1,
-        np.zeros(offset),
-        axis=0)
-    W2 = np.append(pW2,
-        np.random.normal(0, 1 * np.sqrt(1. / offset), (10, offset)),
-        axis=1)
-    
-    return W1, b1, W2, pb2
-
-
 version = 0
-while version < 1000:
+while version < 20:
     version = version + 1
     
     if version == 1:
@@ -265,7 +320,6 @@ while version < 1000:
     prev_n_units = n_units
     n_units = prev_n_units + step_units
     
-
 
 
 # 対話的コンソール グラフスケール変えたい時とかに
